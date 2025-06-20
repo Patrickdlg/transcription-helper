@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import { onMount } from 'svelte';
     
     // Svelte 5 runes for reactive state
@@ -7,22 +7,25 @@
     let startTime = $state(0);
     let endTime = $state(30);
     let delayTime = $state(1);
+    let playbackSpeed = $state(1.0);
     let isLooping = $state(false);
     let currentTime = $state(0);
     let isPlayerReady = $state(false);
     
-    let player = $state(null);
-    let loopTimeout = $state(null);
-    let timeUpdateInterval = $state(null);
+    let player: any = $state(null);
+    let loopTimeout: number | null = $state(null);
+    let timeUpdateInterval: number | null = $state(null);
     
     // YouTube API setup
-    let YT = $state(null);
+    let YT: any = $state(null);
     let apiReady = $state(false);
     
     // Derived state using $derived rune
     let formattedCurrentTime = $derived(formatTime(currentTime));
     let loopDuration = $derived(endTime - startTime);
+    let actualLoopDuration = $derived(loopDuration / playbackSpeed);
     let loopInfo = $derived(`Loop: ${formatTime(startTime)} - ${formatTime(endTime)} (${delayTime}s delay)`);
+    let speedInfo = $derived(`Speed: ${playbackSpeed}x`);
     
     onMount(() => {
       loadYouTubeAPI();
@@ -34,8 +37,8 @@
     });
     
     function loadYouTubeAPI() {
-      if (window.YT) {
-        YT = window.YT;
+      if ((window as any).YT) {
+        YT = (window as any).YT;
         apiReady = true;
         return;
       }
@@ -43,15 +46,15 @@
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
       
-      window.onYouTubeIframeAPIReady = () => {
-        YT = window.YT;
+      (window as any).onYouTubeIframeAPIReady = () => {
+        YT = (window as any).YT;
         apiReady = true;
       };
       
       document.head.appendChild(tag);
     }
     
-    function extractVideoId(url) {
+    function extractVideoId(url: string) {
       const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
       const match = url.match(regex);
       return match ? match[1] : null;
@@ -92,12 +95,16 @@
       });
     }
     
-    function onPlayerReady(event) {
+    function onPlayerReady(event: any) {
       isPlayerReady = true;
       startTimeTracking();
+      // Set initial playback speed
+      if (player && player.setPlaybackRate) {
+        player.setPlaybackRate(playbackSpeed);
+      }
     }
     
-    function onPlayerStateChange(event) {
+    function onPlayerStateChange(event: any) {
       // Handle state changes if needed
     }
     
@@ -135,6 +142,13 @@
       }
     }
     
+    function setPlaybackSpeed(speed: number) {
+      playbackSpeed = speed;
+      if (player && player.setPlaybackRate && isPlayerReady) {
+        player.setPlaybackRate(speed);
+      }
+    }
+    
     function toggleLoop() {
       if (!player || !isPlayerReady) return;
       
@@ -169,7 +183,7 @@
       player.playVideo();
       
       // Set timeout for when to pause and restart
-      const loopDurationMs = loopDuration * 1000;
+      const loopDurationMs = actualLoopDuration * 1000;
       const delayMs = delayTime * 1000;
       
       loopTimeout = setTimeout(() => {
@@ -187,7 +201,7 @@
       }, loopDurationMs);
     }
     
-    function formatTime(seconds) {
+    function formatTime(seconds: number) {
       const mins = Math.floor(seconds / 60);
       const secs = Math.floor(seconds % 60);
       return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -254,6 +268,47 @@
       </div>
       
       <div class="control-group">
+        <h3>Playback Speed</h3>
+        <div class="speed-controls">
+          <div class="speed-slider-container">
+            <input 
+              bind:value={playbackSpeed}
+              type="range" 
+              min="0.25" 
+              max="2" 
+              step="0.25" 
+              class="speed-slider"
+              oninput={(e) => setPlaybackSpeed(parseFloat((e.target as HTMLInputElement).value))}
+            />
+            <div class="speed-value">{playbackSpeed}x</div>
+          </div>
+          <div class="speed-presets">
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(0.25)}>
+              0.25x
+            </button>
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(0.5)}>
+              0.5x
+            </button>
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(0.75)}>
+              0.75x
+            </button>
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(1)}>
+              1x
+            </button>
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(1.25)}>
+              1.25x
+            </button>
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(1.5)}>
+              1.5x
+            </button>
+            <button class="button button-secondary small-button" onclick={() => setPlaybackSpeed(2)}>
+              2x
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="control-group">
         <h3>Delay Between Loops</h3>
         <div class="time-inputs">
           <input 
@@ -290,6 +345,7 @@
     <div class="status">
       <div class="current-time">{formattedCurrentTime}</div>
       <div class="loop-info">{loopInfo}</div>
+      <div class="speed-info">{speedInfo}</div>
       {#if isLooping}
         <div class="loop-active">🔄 Looping active</div>
       {/if}
@@ -393,6 +449,61 @@
       width: 100px;
     }
     
+    .speed-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .speed-slider-container {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .speed-slider {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #444;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ff6b35;
+      cursor: pointer;
+    }
+    
+    .speed-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ff6b35;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .speed-value {
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      color: #ff6b35;
+      min-width: 40px;
+      text-align: center;
+    }
+    
+    .speed-presets {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
     .button {
       padding: 10px 20px;
       border: none;
@@ -451,7 +562,7 @@
       margin-bottom: 10px;
     }
     
-    .loop-info {
+    .loop-info, .speed-info {
       color: #ccc;
       margin-bottom: 10px;
     }
