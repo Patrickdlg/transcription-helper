@@ -218,7 +218,7 @@
   </script>
   
   <div class="container">
-    <h1>🎷 Sax Practice Looper</h1>
+    <h1>🎷 Transcription Practice Looper</h1>
     
     <div class="url-section">
       <input 
@@ -238,7 +238,7 @@
     
     <div class="controls">
       <div class="control-group">
-        <h3>Loop Points</h3>
+        <h3>Loop Points (in seconds)</h3>
         <div class="time-inputs">
           <input 
             bind:value={startTime}
@@ -255,7 +255,6 @@
             placeholder="End" 
             min="0"
           />
-          <span>sec</span>
         </div>
         <div class="quick-buttons">
           <button class="button button-secondary small-button" onclick={setCurrentAsStart}>
