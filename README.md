@@ -1,6 +1,6 @@
 # Transcription Helper
 
-A simple program that lets you select a start + endpoint on a youtube video so you can isolate that clip for transcribing.
+A simple program that lets you select a start + endpoint on a youtube video so you can isolate that clip for transcribing. This repo builds and deploys to github pages. You can [try it out here.](https://patrickdlg.github.io/transcription-helper/)
 
 Features:
   - load youtube video
