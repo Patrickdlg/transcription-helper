@@ -11,6 +11,8 @@
     let isLooping = $state(false);
     let currentTime = $state(0);
     let isPlayerReady = $state(false);
+    let showToast = $state(false);
+    let toastMessage = $state('');
     
     let player: any = $state(null);
     let loopTimeout: number | null = $state(null);
@@ -29,12 +31,68 @@
     
     onMount(() => {
       loadYouTubeAPI();
+      loadFromURL();
       
       return () => {
         if (loopTimeout) clearTimeout(loopTimeout);
         if (timeUpdateInterval) clearInterval(timeUpdateInterval);
       };
     });
+    
+    function loadFromURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      if (urlParams.get('url')) {
+        videoUrl = urlParams.get('url') || '';
+      }
+      if (urlParams.get('start')) {
+        startTime = parseFloat(urlParams.get('start') || '0');
+      }
+      if (urlParams.get('end')) {
+        endTime = parseFloat(urlParams.get('end') || '30');
+      }
+      if (urlParams.get('delay')) {
+        delayTime = parseFloat(urlParams.get('delay') || '1');
+      }
+      if (urlParams.get('speed')) {
+        playbackSpeed = parseFloat(urlParams.get('speed') || '1');
+      }
+      
+      // Auto-load video if URL is provided
+      if (videoUrl) {
+        setTimeout(() => loadVideo(), 100);
+      }
+    }
+    
+    function shareLoop() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('url', videoUrl);
+      url.searchParams.set('start', startTime.toString());
+      url.searchParams.set('end', endTime.toString());
+      url.searchParams.set('delay', delayTime.toString());
+      url.searchParams.set('speed', playbackSpeed.toString());
+      
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        showToastMessage('Loop configuration copied to clipboard!');
+      }).catch(() => {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = url.toString();
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showToastMessage('Loop configuration copied to clipboard!');
+      });
+    }
+    
+    function showToastMessage(message: string) {
+      toastMessage = message;
+      showToast = true;
+      setTimeout(() => {
+        showToast = false;
+      }, 3000);
+    }
     
     function loadYouTubeAPI() {
       if ((window as any).YT) {
@@ -220,6 +278,12 @@
   <div class="container">
     <h1>🎷 Transcription Practice Looper</h1>
     
+    {#if showToast}
+      <div class="toast">
+        {toastMessage}
+      </div>
+    {/if}
+    
     <div class="url-section">
       <input 
         bind:value={videoUrl}
@@ -229,6 +293,9 @@
       />
       <button class="button button-primary" onclick={loadVideo}>
         Load Video
+      </button>
+      <button class="button button-secondary" onclick={shareLoop}>
+        Share Loop
       </button>
     </div>
     
@@ -575,5 +642,31 @@
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
+    }
+    
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4ade80;
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      z-index: 1000;
+      animation: slideIn 0.3s ease-out;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(-50%) translateY(-100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
     }
   </style>
